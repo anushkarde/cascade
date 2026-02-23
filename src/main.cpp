@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "sim/workflow.h"
+
 namespace fs = std::filesystem;
 
 enum class Policy {
@@ -214,6 +216,50 @@ static int RunSimulation(const CliOptions& o) {
             << "  disable_hedging=" << (o.disable_hedging ? "true" : "false") << "\n"
             << "  disable_escalation=" << (o.disable_escalation ? "true" : "false") << "\n"
             << "  disable_dag_priority=" << (o.disable_dag_priority ? "true" : "false") << "\n";
+
+  // Bring-up sanity check: build multi-iteration workflow DAGs, execute them with a trivial
+  // "instant success" controller, and verify the state machine can reach termination.
+  sim::WorkloadParams wp;
+  wp.pdfs = o.pdfs;
+  wp.subqueries_per_iter = o.subqueries;
+  wp.max_iters = o.iters;
+  wp.seed = o.seed;
+
+  std::uint64_t total_nodes = 0;
+  std::uint64_t total_cancelled = 0;
+  int max_completed_iters = 0;
+
+  for (int i = 0; i < o.workflows; ++i) {
+    sim::Workflow wf(static_cast<sim::WorkflowId>(i + 1), wp);
+
+    std::uint64_t safety = 0;
+    while (!wf.done()) {
+      wf.RefreshRunnable();
+      const auto runnable = wf.RunnableNodes();
+      if (runnable.empty()) {
+        throw std::runtime_error("Workflow deadlocked (no runnable nodes, not done)");
+      }
+      const sim::NodeId nid = runnable.front();
+      wf.MarkRunning(nid);
+      wf.MarkSucceeded(nid);
+
+      if (++safety > 5'000'000ULL) {
+        throw std::runtime_error("Workflow did not converge (safety cap exceeded)");
+      }
+    }
+
+    total_nodes += wf.nodes().size();
+    for (const auto& [nid, n] : wf.nodes()) {
+      if (n.state == sim::NodeState::Cancelled) ++total_cancelled;
+    }
+    max_completed_iters = std::max(max_completed_iters, wf.completed_iters());
+  }
+
+  std::cout << "workflow generator sanity:\n"
+            << "  total_workflows=" << o.workflows << "\n"
+            << "  total_nodes=" << total_nodes << "\n"
+            << "  total_cancelled=" << total_cancelled << "\n"
+            << "  max_completed_iters=" << max_completed_iters << "\n";
 
   return 0;
 }

@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(agent_sched_sim
   src/main.cpp
+  src/sim/workflow.cpp
 )
 
 target_compile_features(agent_sched_sim PRIVATE cxx_std_20)
