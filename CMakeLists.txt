@@ -8,6 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(agent_sched_sim
   src/main.cpp
+  src/sim/config.cpp
+  src/sim/random.cpp
+  src/sim/provider.cpp
   src/sim/workflow.cpp
 )
 

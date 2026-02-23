@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "sim/provider.h"
 #include "sim/workflow.h"
 
 namespace fs = std::filesystem;
@@ -260,6 +261,35 @@ static int RunSimulation(const CliOptions& o) {
             << "  total_nodes=" << total_nodes << "\n"
             << "  total_cancelled=" << total_cancelled << "\n"
             << "  max_completed_iters=" << max_completed_iters << "\n";
+
+  // Provider tier sanity: token bucket, queues, latency sampling
+  sim::ProviderConfig prov_config;
+  sim::ProviderManager prov_mgr(prov_config);
+  sim::SeededRng rng(o.seed);
+  sim::LatencySampler sampler(prov_config.latency, &rng);
+
+  int samples_ok = 0;
+  int samples_fail = 0;
+  int samples_timeout = 0;
+  for (int i = 0; i < 50; ++i) {
+    sim::LatencyContext ctx;
+    ctx.node_type = (i % 2 == 0) ? sim::NodeType::Embed : sim::NodeType::Plan;
+    ctx.token_length_est = 100 + static_cast<std::size_t>(i) * 10;
+    auto s = sampler.Sample(ctx, 30'000, 0.02);
+    if (s.failed) ++samples_fail;
+    else if (s.timeout) ++samples_timeout;
+    else ++samples_ok;
+  }
+
+  sim::Tier* tier = prov_mgr.GetTier("embed_provider", 0);
+  if (!tier) throw std::runtime_error("embed_provider tier 0 not found");
+  if (tier->concurrency_cap() != 4) throw std::runtime_error("concurrency_cap mismatch");
+
+  std::cout << "provider sanity:\n"
+            << "  latency_samples_ok=" << samples_ok << "\n"
+            << "  latency_samples_fail=" << samples_fail << "\n"
+            << "  latency_samples_timeout=" << samples_timeout << "\n"
+            << "  tier_embed_0_concurrency=" << tier->concurrency_cap() << "\n";
 
   return 0;
 }
