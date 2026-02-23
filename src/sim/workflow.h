@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sim/config.h"
 #include "sim/types.h"
 
 #include <cstdint>
@@ -20,7 +21,7 @@ enum class DecideAction { Stop, Continue };
 
 class Workflow {
  public:
-  Workflow(WorkflowId id, WorkloadParams params);
+  Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig& provider_config);
 
   WorkflowId id() const { return id_; }
   const WorkloadParams& params() const { return params_; }
@@ -62,12 +63,14 @@ class Workflow {
   void ExpandIterationFromPlan(NodeId plan_node);
   void OnDecideNext(NodeId decide_node);
   DecideAction ComputeDecideAction(int iter) const;
+  void PopulatePreferenceListForNode(Node& n);
 
   int IterEvidenceTotal(int iter) const;
   int IterPdfCoverageCount(int iter) const;
 
   WorkflowId id_ = 0;
   WorkloadParams params_;
+  const ProviderConfig* provider_config_ = nullptr;
   WorkflowGraph graph_;
 
   bool done_ = false;

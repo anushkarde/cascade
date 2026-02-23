@@ -8,8 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "sim/provider.h"
-#include "sim/workflow.h"
+#include "sim/controller.h"
+#include "sim/scheduler.h"
 
 namespace fs = std::filesystem;
 
@@ -33,6 +33,8 @@ struct CliOptions {
   bool disable_hedging = false;
   bool disable_escalation = false;
   bool disable_dag_priority = false;
+  double heavy_tail_prob = 0.02;
+  double heavy_tail_multiplier = 50.0;
 };
 
 static std::string ToString(Policy p) {
@@ -72,6 +74,8 @@ static void PrintUsage(std::ostream& os, const char* argv0) {
      << "  --disable_hedging\n"
      << "  --disable_escalation\n"
      << "  --disable_dag_priority\n"
+     << "  --heavy_tail_prob N    Fraction of tasks with heavy-tail latency (default: 0.02)\n"
+     << "  --heavy_tail_mult N   Latency multiplier for heavy-tail tasks (default: 50)\n"
      << "  -h, --help            Show this help\n";
 }
 
@@ -148,6 +152,17 @@ static CliOptions ParseArgs(int argc, char** argv) {
       continue;
     }
 
+    if (a == "--heavy_tail_prob") {
+      o.heavy_tail_prob = std::stod(RequireValue(args, i));
+      ++i;
+      continue;
+    }
+    if (a == "--heavy_tail_mult") {
+      o.heavy_tail_multiplier = std::stod(RequireValue(args, i));
+      ++i;
+      continue;
+    }
+
     if (a == "--workflows") {
       o.workflows = ParseInt(RequireValue(args, i), a);
       ++i;
@@ -198,6 +213,16 @@ static CliOptions ParseArgs(int argc, char** argv) {
   return o;
 }
 
+static sim::SchedulerPolicy ToSchedulerPolicy(Policy p) {
+  switch (p) {
+    case Policy::fifo_cheapest: return sim::SchedulerPolicy::fifo_cheapest;
+    case Policy::dag_cheapest: return sim::SchedulerPolicy::dag_cheapest;
+    case Policy::dag_escalation: return sim::SchedulerPolicy::dag_escalation;
+    case Policy::full: return sim::SchedulerPolicy::full;
+  }
+  return sim::SchedulerPolicy::full;
+}
+
 static int RunSimulation(const CliOptions& o) {
   std::error_code ec;
   fs::create_directories(o.out_dir, ec);
@@ -218,78 +243,31 @@ static int RunSimulation(const CliOptions& o) {
             << "  disable_escalation=" << (o.disable_escalation ? "true" : "false") << "\n"
             << "  disable_dag_priority=" << (o.disable_dag_priority ? "true" : "false") << "\n";
 
-  // Bring-up sanity check: build multi-iteration workflow DAGs, execute them with a trivial
-  // "instant success" controller, and verify the state machine can reach termination.
-  sim::WorkloadParams wp;
-  wp.pdfs = o.pdfs;
-  wp.subqueries_per_iter = o.subqueries;
-  wp.max_iters = o.iters;
-  wp.seed = o.seed;
+  sim::ControllerConfig cfg;
+  cfg.workflows = o.workflows;
+  cfg.pdfs = o.pdfs;
+  cfg.iters = o.iters;
+  cfg.subqueries = o.subqueries;
+  cfg.seed = o.seed;
+  cfg.time_scale = o.time_scale;
+  cfg.out_dir = o.out_dir;
+  cfg.policy = ToSchedulerPolicy(o.policy);
+  cfg.disable_hedging = o.disable_hedging;
+  cfg.disable_escalation = o.disable_escalation;
+  cfg.disable_dag_priority = o.disable_dag_priority;
+  cfg.heavy_tail_prob = o.heavy_tail_prob;
+  cfg.heavy_tail_multiplier = o.heavy_tail_multiplier;
 
-  std::uint64_t total_nodes = 0;
-  std::uint64_t total_cancelled = 0;
-  int max_completed_iters = 0;
+  sim::Controller controller(cfg);
+  controller.Run();
 
-  for (int i = 0; i < o.workflows; ++i) {
-    sim::Workflow wf(static_cast<sim::WorkflowId>(i + 1), wp);
-
-    std::uint64_t safety = 0;
-    while (!wf.done()) {
-      wf.RefreshRunnable();
-      const auto runnable = wf.RunnableNodes();
-      if (runnable.empty()) {
-        throw std::runtime_error("Workflow deadlocked (no runnable nodes, not done)");
-      }
-      const sim::NodeId nid = runnable.front();
-      wf.MarkRunning(nid);
-      wf.MarkSucceeded(nid);
-
-      if (++safety > 5'000'000ULL) {
-        throw std::runtime_error("Workflow did not converge (safety cap exceeded)");
-      }
-    }
-
-    total_nodes += wf.nodes().size();
-    for (const auto& [nid, n] : wf.nodes()) {
-      if (n.state == sim::NodeState::Cancelled) ++total_cancelled;
-    }
-    max_completed_iters = std::max(max_completed_iters, wf.completed_iters());
-  }
-
-  std::cout << "workflow generator sanity:\n"
-            << "  total_workflows=" << o.workflows << "\n"
-            << "  total_nodes=" << total_nodes << "\n"
-            << "  total_cancelled=" << total_cancelled << "\n"
-            << "  max_completed_iters=" << max_completed_iters << "\n";
-
-  // Provider tier sanity: token bucket, queues, latency sampling
-  sim::ProviderConfig prov_config;
-  sim::ProviderManager prov_mgr(prov_config);
-  sim::SeededRng rng(o.seed);
-  sim::LatencySampler sampler(prov_config.latency, &rng);
-
-  int samples_ok = 0;
-  int samples_fail = 0;
-  int samples_timeout = 0;
-  for (int i = 0; i < 50; ++i) {
-    sim::LatencyContext ctx;
-    ctx.node_type = (i % 2 == 0) ? sim::NodeType::Embed : sim::NodeType::Plan;
-    ctx.token_length_est = 100 + static_cast<std::size_t>(i) * 10;
-    auto s = sampler.Sample(ctx, 30'000, 0.02);
-    if (s.failed) ++samples_fail;
-    else if (s.timeout) ++samples_timeout;
-    else ++samples_ok;
-  }
-
-  sim::Tier* tier = prov_mgr.GetTier("embed_provider", 0);
-  if (!tier) throw std::runtime_error("embed_provider tier 0 not found");
-  if (tier->concurrency_cap() != 4) throw std::runtime_error("concurrency_cap mismatch");
-
-  std::cout << "provider sanity:\n"
-            << "  latency_samples_ok=" << samples_ok << "\n"
-            << "  latency_samples_fail=" << samples_fail << "\n"
-            << "  latency_samples_timeout=" << samples_timeout << "\n"
-            << "  tier_embed_0_concurrency=" << tier->concurrency_cap() << "\n";
+  const auto& summary = controller.summary_metrics();
+  std::cout << "summary:\n"
+            << "  makespan_mean_ms=" << summary.makespan_mean_ms << "\n"
+            << "  makespan_p95_ms=" << summary.makespan_p95_ms << "\n"
+            << "  cost_mean=" << summary.cost_mean << "\n"
+            << "  outputs: " << o.out_dir << "/workflows.csv, " << o.out_dir << "/tiers.csv, "
+            << o.out_dir << "/summary.csv, " << o.out_dir << "/trace.json\n";
 
   return 0;
 }

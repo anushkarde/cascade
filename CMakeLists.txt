@@ -9,9 +9,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(agent_sched_sim
   src/main.cpp
   src/sim/config.cpp
+  src/sim/controller.cpp
+  src/sim/metrics.cpp
   src/sim/random.cpp
   src/sim/provider.cpp
+  src/sim/scheduler.cpp
+  src/sim/trace.cpp
   src/sim/workflow.cpp
+  src/sim/worker.cpp
 )
 
 target_compile_features(agent_sched_sim PRIVATE cxx_std_20)

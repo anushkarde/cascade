@@ -1,0 +1,4 @@
+workflow_id,makespan_ms,cost,retries,cancellations,hedges_launched,wasted_ms
+1,185476,0.0402,0,0,0,0
+3,185484,0.161,0,0,0,0
+2,185525,0.0802,0,0,0,0

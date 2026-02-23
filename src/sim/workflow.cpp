@@ -18,7 +18,8 @@ static std::uint64_t Mix64(std::uint64_t x) {
   return x;
 }
 
-Workflow::Workflow(WorkflowId id, WorkloadParams params) : id_(id), params_(params) {
+Workflow::Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig& provider_config)
+    : id_(id), params_(params), provider_config_(&provider_config) {
   if (params_.pdfs <= 0) throw std::runtime_error("WorkloadParams.pdfs must be > 0");
   if (params_.subqueries_per_iter < 0) throw std::runtime_error("WorkloadParams.subqueries_per_iter must be >= 0");
   if (params_.max_iters <= 0) throw std::runtime_error("WorkloadParams.max_iters must be > 0");
@@ -198,7 +199,8 @@ void Workflow::EnsureInitialPlan() {
   // Deterministic "size" estimate: grows slightly with iteration and workload.
   plan.output_size_est = static_cast<std::size_t>(200 + 10 * params_.subqueries_per_iter + 3 * params_.pdfs);
 
-  AddNode(std::move(plan));
+  Node& p = AddNode(std::move(plan));
+  PopulatePreferenceListForNode(p);
 }
 
 static ResourceClass ResourceForType(NodeType t) {
@@ -261,9 +263,12 @@ void Workflow::ExpandIterationFromPlan(NodeId plan_node) {
     const NodeId chunk_id = chunk.id;
     const NodeId embed_id = embed.id;
 
-    AddNode(std::move(load));
-    AddNode(std::move(chunk));
-    AddNode(std::move(embed));
+    Node& l = AddNode(std::move(load));
+    Node& c = AddNode(std::move(chunk));
+    Node& e = AddNode(std::move(embed));
+    PopulatePreferenceListForNode(l);
+    PopulatePreferenceListForNode(c);
+    PopulatePreferenceListForNode(e);
 
     AddEdge(plan_node, load_id);
     AddEdge(load_id, chunk_id);
@@ -301,8 +306,10 @@ void Workflow::ExpandIterationFromPlan(NodeId plan_node) {
 
       const NodeId ss_id = ss.id;
       const NodeId ex_id = ex.id;
-      AddNode(std::move(ss));
-      AddNode(std::move(ex));
+      Node& ss_ref = AddNode(std::move(ss));
+      Node& ex_ref = AddNode(std::move(ex));
+      PopulatePreferenceListForNode(ss_ref);
+      PopulatePreferenceListForNode(ex_ref);
 
       AddEdge(embed_id, ss_id);
       AddEdge(ss_id, ex_id);
@@ -328,8 +335,10 @@ void Workflow::ExpandIterationFromPlan(NodeId plan_node) {
 
   const NodeId agg_id = agg.id;
   const NodeId decide_id = decide.id;
-  AddNode(std::move(agg));
-  AddNode(std::move(decide));
+  Node& agg_ref = AddNode(std::move(agg));
+  Node& decide_ref = AddNode(std::move(decide));
+  PopulatePreferenceListForNode(agg_ref);
+  PopulatePreferenceListForNode(decide_ref);
 
   if (!extract_nodes.empty()) {
     for (NodeId ex_id : extract_nodes) AddEdge(ex_id, agg_id);
@@ -381,6 +390,34 @@ DecideAction Workflow::ComputeDecideAction(int iter) const {
   return (strong || borderline) ? DecideAction::Stop : DecideAction::Continue;
 }
 
+void Workflow::PopulatePreferenceListForNode(Node& n) {
+  if (!provider_config_) return;
+  n.preference_list.clear();
+  for (const auto& tc : provider_config_->tiers) {
+    if (n.resource_class == ResourceClass::embed && tc.provider == "embed_provider") {
+      ExecutionOption opt;
+      opt.provider = tc.provider;
+      opt.tier_id = tc.tier_id;
+      opt.price_per_call = tc.price_per_call;
+      opt.timeout_ms = tc.default_timeout_ms;
+      opt.max_retries = tc.default_max_retries;
+      n.preference_list.push_back(opt);
+    } else if (n.resource_class == ResourceClass::llm && tc.provider == "llm_provider") {
+      ExecutionOption opt;
+      opt.provider = tc.provider;
+      opt.tier_id = tc.tier_id;
+      opt.price_per_call = tc.price_per_call;
+      opt.timeout_ms = tc.default_timeout_ms;
+      opt.max_retries = tc.default_max_retries;
+      n.preference_list.push_back(opt);
+    }
+  }
+  std::sort(n.preference_list.begin(), n.preference_list.end(),
+            [](const ExecutionOption& a, const ExecutionOption& b) {
+              return a.price_per_call < b.price_per_call;
+            });
+}
+
 void Workflow::OnDecideNext(NodeId decide_node) {
   const Node& dn = node(decide_node);
   const int iter = dn.iter;
@@ -404,7 +441,8 @@ void Workflow::OnDecideNext(NodeId decide_node) {
   plan.output_size_est = static_cast<std::size_t>(220 + 15 * params_.subqueries_per_iter + 4 * params_.pdfs);
 
   const NodeId plan_id = plan.id;
-  AddNode(std::move(plan));
+  Node& plan_ref = AddNode(std::move(plan));
+  PopulatePreferenceListForNode(plan_ref);
   AddEdge(decide_node, plan_id);
   InitializeStateFromDeps(plan_id);
 }

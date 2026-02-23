@@ -63,6 +63,8 @@ struct QueuedAttempt {
   int timeout_ms = 30'000;
   int max_retries = 3;
   LatencyContext latency_ctx;
+  AttemptId attempt_id = 0;
+  std::atomic<bool>* cancelled = nullptr;  // worker checks; controller sets when cancelling
 };
 
 // Single provider tier: queue, token bucket, concurrency cap.
@@ -80,6 +82,7 @@ class Tier {
   void Enqueue(QueuedAttempt attempt);
   bool TryDequeue(QueuedAttempt& out);
   void BlockingDequeue(QueuedAttempt& out);
+  bool TimedDequeue(QueuedAttempt& out, std::chrono::milliseconds timeout);
   void AcquireTokens(QueuedAttempt& attempt);
   void OnAttemptStart();
   void OnAttemptFinish();

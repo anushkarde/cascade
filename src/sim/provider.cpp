@@ -81,6 +81,18 @@ void Tier::AcquireTokens(QueuedAttempt& attempt) {
   token_bucket_->Acquire(static_cast<double>(attempt.tokens_needed));
 }
 
+bool Tier::TimedDequeue(QueuedAttempt& out, std::chrono::milliseconds timeout) {
+  std::unique_lock lock(queue_mutex_);
+  bool ok = queue_cv_.wait_for(lock, timeout, [this] {
+    return !queue_.empty() && in_flight_.load() < config_.concurrency_cap;
+  });
+  if (!ok) return false;
+  out = std::move(queue_.front());
+  queue_.pop();
+  in_flight_.fetch_add(1);
+  return true;
+}
+
 void Tier::OnAttemptStart() {
   // Called when worker actually starts (after token acquire). in_flight already incremented in TryDequeue.
 }

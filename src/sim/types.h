@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -88,6 +89,8 @@ struct WorkflowGraph {
   std::unordered_map<NodeId, Node> nodes;
   NodeId next_node_id = 1;
 };
+
+using AttemptId = std::uint64_t;
 
 }  // namespace sim
 
