@@ -33,6 +33,7 @@ struct SchedulerConfig {
   double alpha = 1.0;   // remCP weight
   double beta = 0.5;     // slack weight
   double gamma = 0.1;   // age weight
+  bool enable_model_routing = false;
 };
 
 // Dispatches runnable nodes to provider/local queues.

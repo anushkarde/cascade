@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/Users/anushkade/Downloads/cascade/src
 
-CXX_FLAGS = -std=c++20 -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+CXX_FLAGS = -O3 -DNDEBUG -std=c++20 -Wall -Wextra -Wpedantic -Wshadow -Wconversion
 

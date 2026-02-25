@@ -20,14 +20,16 @@ Controller::Controller(const ControllerConfig& config)
   sched_cfg.disable_hedging = config_.disable_hedging;
   sched_cfg.disable_escalation = config_.disable_escalation;
   sched_cfg.disable_dag_priority = config_.disable_dag_priority;
+  sched_cfg.enable_model_routing = config_.enable_model_routing;
 
+  const ProviderConfig* wf_provider = config_.enable_model_routing ? &provider_config_ : nullptr;
   for (int i = 0; i < config_.workflows; ++i) {
     WorkloadParams wp;
     wp.pdfs = config_.pdfs;
     wp.subqueries_per_iter = config_.subqueries;
     wp.max_iters = config_.iters;
     wp.seed = config_.seed;
-    auto wf = std::make_unique<Workflow>(static_cast<WorkflowId>(i + 1), wp, provider_config_);
+    auto wf = std::make_unique<Workflow>(static_cast<WorkflowId>(i + 1), wp, wf_provider);
     workflows_[wf->id()] = std::move(wf);
   }
 
@@ -145,7 +147,8 @@ void Controller::MonitorLoop() {
     const double now_ms =
         std::chrono::duration<double, std::milli>(now - start).count() * config_.time_scale;
 
-    if (!config_.disable_hedging && config_.policy == SchedulerPolicy::full) {
+    if (config_.enable_model_routing && !config_.disable_hedging &&
+        config_.policy == SchedulerPolicy::full) {
       std::lock_guard lock(workflows_mutex_);
       for (auto& [wf_id, wf] : workflows_) {
         if (!wf || wf->done()) continue;

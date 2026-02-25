@@ -35,6 +35,7 @@ struct ControllerConfig {
   double straggler_stretch_threshold = 1.5;
   double heavy_tail_prob = 0.02;      // 1-5% of tasks get heavy-tail multiplier
   double heavy_tail_multiplier = 50.0;  // multiplier for heavy-tail tasks
+  bool enable_model_routing = false;
 };
 
 class Controller {

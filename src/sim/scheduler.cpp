@@ -171,14 +171,37 @@ int Scheduler::Dispatch(std::unordered_map<WorkflowId, Workflow*>& workflows, do
       continue;
     }
 
-    if (n.preference_list.empty()) continue;
+    std::string dispatch_provider;
+    int dispatch_tier_id = 0;
+    int dispatch_timeout_ms = 30'000;
+    int dispatch_max_retries = 3;
+    Tier* tier = nullptr;
 
-    const bool is_critical = is_critical_path ? is_critical_path(sn.node_id, sn.workflow_id) : false;
-    const ExecutionOption* opt = SelectOption(n, workflow_cost, is_critical);
-    if (!opt) continue;
-
-    Tier* tier = provider_mgr_->GetTier(opt->provider, opt->tier_id);
-    if (!tier || !tier->can_accept()) continue;
+    if (config_.enable_model_routing && !n.preference_list.empty()) {
+      const bool is_critical = is_critical_path ? is_critical_path(sn.node_id, sn.workflow_id) : false;
+      const ExecutionOption* opt = SelectOption(n, workflow_cost, is_critical);
+      if (!opt) continue;
+      tier = provider_mgr_->GetTier(opt->provider, opt->tier_id);
+      if (!tier || !tier->can_accept()) continue;
+      dispatch_provider = opt->provider;
+      dispatch_tier_id = opt->tier_id;
+      dispatch_timeout_ms = opt->timeout_ms;
+      dispatch_max_retries = opt->max_retries;
+    } else {
+      const char* provider_name =
+          (n.resource_class == ResourceClass::embed) ? "embed_provider" : "llm_provider";
+      for (const auto& t : provider_mgr_->tiers()) {
+        if (t->provider() == provider_name && t->can_accept()) {
+          tier = t.get();
+          break;
+        }
+      }
+      if (!tier) continue;
+      dispatch_provider = tier->provider();
+      dispatch_tier_id = tier->tier_id();
+      dispatch_timeout_ms = tier->config().default_timeout_ms;
+      dispatch_max_retries = tier->config().default_max_retries;
+    }
 
     const std::uint64_t key =
         (static_cast<std::uint64_t>(sn.workflow_id) << 32) | static_cast<std::uint64_t>(sn.node_id);
@@ -189,11 +212,11 @@ int Scheduler::Dispatch(std::unordered_map<WorkflowId, Workflow*>& workflows, do
     attempt.node_id = sn.node_id;
     attempt.workflow_id = sn.workflow_id;
     attempt.node_type = n.type;
-    attempt.provider = opt->provider;
-    attempt.tier_id = opt->tier_id;
+    attempt.provider = dispatch_provider;
+    attempt.tier_id = dispatch_tier_id;
     attempt.tokens_needed = 1;
-    attempt.timeout_ms = opt->timeout_ms;
-    attempt.max_retries = opt->max_retries;
+    attempt.timeout_ms = dispatch_timeout_ms;
+    attempt.max_retries = dispatch_max_retries;
     attempt.latency_ctx.node_type = n.type;
     attempt.latency_ctx.token_length_est = static_cast<std::size_t>(n.output_size_est);
     attempt.attempt_id = next_attempt_id.fetch_add(1);
@@ -202,7 +225,7 @@ int Scheduler::Dispatch(std::unordered_map<WorkflowId, Workflow*>& workflows, do
     wf->MarkQueued(sn.node_id);
     tier->Enqueue(std::move(attempt));
     if (trace_) trace_->Emit(TraceEvent::NodeQueued, now_ms, sn.workflow_id, sn.node_id,
-                            opt->provider + "_" + std::to_string(opt->tier_id));
+                            dispatch_provider + "_" + std::to_string(dispatch_tier_id));
     if (on_dispatch) on_dispatch(sn.workflow_id, sn.node_id, now_ms);
     ++dispatched;
     ++in_flight;

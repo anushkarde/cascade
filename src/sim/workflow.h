@@ -21,7 +21,7 @@ enum class DecideAction { Stop, Continue };
 
 class Workflow {
  public:
-  Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig& provider_config);
+  Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig* provider_config = nullptr);
 
   WorkflowId id() const { return id_; }
   const WorkloadParams& params() const { return params_; }

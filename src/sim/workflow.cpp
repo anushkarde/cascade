@@ -18,8 +18,8 @@ static std::uint64_t Mix64(std::uint64_t x) {
   return x;
 }
 
-Workflow::Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig& provider_config)
-    : id_(id), params_(params), provider_config_(&provider_config) {
+Workflow::Workflow(WorkflowId id, WorkloadParams params, const ProviderConfig* provider_config)
+    : id_(id), params_(params), provider_config_(provider_config) {
   if (params_.pdfs <= 0) throw std::runtime_error("WorkloadParams.pdfs must be > 0");
   if (params_.subqueries_per_iter < 0) throw std::runtime_error("WorkloadParams.subqueries_per_iter must be >= 0");
   if (params_.max_iters <= 0) throw std::runtime_error("WorkloadParams.max_iters must be > 0");

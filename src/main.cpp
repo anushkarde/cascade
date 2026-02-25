@@ -30,6 +30,7 @@ struct CliOptions {
   int time_scale = 50;
   std::string out_dir = "out";
 
+  bool enable_model_routing = false;
   bool disable_hedging = false;
   bool disable_escalation = false;
   bool disable_dag_priority = false;
@@ -71,6 +72,7 @@ static void PrintUsage(std::ostream& os, const char* argv0) {
      << "  --out_dir PATH        Output directory (default: out)\n"
      << "\n"
      << "Flags:\n"
+     << "  --enable_model_routing   Enable preference-list routing, escalation, and hedging\n"
      << "  --disable_hedging\n"
      << "  --disable_escalation\n"
      << "  --disable_dag_priority\n"
@@ -139,6 +141,10 @@ static CliOptions ParseArgs(int argc, char** argv) {
       std::exit(0);
     }
 
+    if (a == "--enable_model_routing") {
+      o.enable_model_routing = true;
+      continue;
+    }
     if (a == "--disable_hedging") {
       o.disable_hedging = true;
       continue;
@@ -239,6 +245,7 @@ static int RunSimulation(const CliOptions& o) {
             << "  seed=" << o.seed << "\n"
             << "  time_scale=" << o.time_scale << "\n"
             << "  out_dir=" << o.out_dir << "\n"
+            << "  enable_model_routing=" << (o.enable_model_routing ? "true" : "false") << "\n"
             << "  disable_hedging=" << (o.disable_hedging ? "true" : "false") << "\n"
             << "  disable_escalation=" << (o.disable_escalation ? "true" : "false") << "\n"
             << "  disable_dag_priority=" << (o.disable_dag_priority ? "true" : "false") << "\n";
@@ -252,6 +259,7 @@ static int RunSimulation(const CliOptions& o) {
   cfg.time_scale = o.time_scale;
   cfg.out_dir = o.out_dir;
   cfg.policy = ToSchedulerPolicy(o.policy);
+  cfg.enable_model_routing = o.enable_model_routing;
   cfg.disable_hedging = o.disable_hedging;
   cfg.disable_escalation = o.disable_escalation;
   cfg.disable_dag_priority = o.disable_dag_priority;
