@@ -37,7 +37,7 @@ struct LatencySample {
 // Acquire(tokens) blocks until tokens are available.
 class TokenBucket {
  public:
-  TokenBucket(double rate_per_sec, double capacity);
+  TokenBucket(double rate_per_sec, double capacity, double time_scale = 1.0);
 
   void Acquire(double tokens);
 
@@ -47,6 +47,7 @@ class TokenBucket {
   double rate_per_sec_;
   double capacity_;
   double tokens_;
+  double time_scale_;
   std::chrono::steady_clock::time_point last_refill_;
   std::mutex mutex_;
   std::condition_variable cv_;
@@ -70,7 +71,7 @@ struct QueuedAttempt {
 // Single provider tier: queue, token bucket, concurrency cap.
 class Tier {
  public:
-  Tier(const TierConfig& config);
+  Tier(const TierConfig& config, double time_scale = 1.0);
 
   const TierConfig& config() const { return config_; }
   const std::string& provider() const { return config_.provider; }
@@ -115,7 +116,7 @@ class LatencySampler {
 // Manages all provider tiers.
 class ProviderManager {
  public:
-  explicit ProviderManager(const ProviderConfig& config);
+  explicit ProviderManager(const ProviderConfig& config, double time_scale = 1.0);
 
   Tier* GetTier(const std::string& provider, int tier_id);
   const Tier* GetTier(const std::string& provider, int tier_id) const;

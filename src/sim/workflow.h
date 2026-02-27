@@ -45,6 +45,7 @@ class Workflow {
   void MarkRunning(NodeId nid);
   void MarkSucceeded(NodeId nid);
   void MarkFailed(NodeId nid);
+  void Retry(NodeId nid);
   void Cancel(NodeId nid);
 
   // Best-effort pruning hook: cancels all non-terminal nodes in branches that are no longer needed.

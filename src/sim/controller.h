@@ -1,4 +1,4 @@
-#pragma once
+          #pragma once
 
 #include "sim/config.h"
 #include "sim/metrics.h"
@@ -67,6 +67,7 @@ class Controller {
   std::unordered_map<WorkflowId, double> workflow_cost_;
   std::unordered_map<std::uint64_t, std::atomic<bool>*> cancelled_flags_;
   std::unordered_map<std::uint64_t, std::chrono::steady_clock::time_point> attempt_start_time_;
+  std::unordered_map<std::uint64_t, int> node_failure_count_;
 
   std::atomic<AttemptId> next_attempt_id_{1};
   std::atomic<bool> shutdown_{false};

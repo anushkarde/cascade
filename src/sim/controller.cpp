@@ -12,7 +12,7 @@ namespace sim {
 Controller::Controller(const ControllerConfig& config)
     : config_(config),
       provider_config_(),
-      provider_mgr_(std::make_unique<ProviderManager>(provider_config_)),
+      provider_mgr_(std::make_unique<ProviderManager>(provider_config_, static_cast<double>(config_.time_scale))),
       rng_(std::make_unique<SeededRng>(config_.seed)),
       sampler_(std::make_unique<LatencySampler>(provider_config_.latency, rng_.get())) {
   SchedulerConfig sched_cfg;
@@ -196,6 +196,7 @@ void Controller::ProcessResults() {
         (static_cast<std::uint64_t>(res.workflow_id) << 32) | static_cast<std::uint64_t>(res.node_id);
 
     if (res.success) {
+      node_failure_count_.erase(key);
       auto it = cancelled_flags_.find(key);
       if (it != cancelled_flags_.end()) {
         it->second->store(true);
@@ -209,9 +210,21 @@ void Controller::ProcessResults() {
         if (trace_) trace_->Emit(TraceEvent::AttemptCancel, res.duration_ms, res.workflow_id,
                                  res.node_id, "hedge_loser");
       } else {
-        wf->MarkFailed(res.node_id);
-        if (trace_) trace_->Emit(TraceEvent::AttemptFail, res.duration_ms, res.workflow_id,
-                                res.node_id, res.error);
+        int max_retries = 0;
+        if (Tier* t = provider_mgr_->GetTier(res.provider, res.tier_id)) {
+          max_retries = t->config().default_max_retries;
+        }
+        const int fails = ++node_failure_count_[key];
+        const bool can_retry = n.idempotent && (fails <= max_retries);
+        if (can_retry) {
+          wf->Retry(res.node_id);
+          if (trace_) trace_->Emit(TraceEvent::AttemptFail, res.duration_ms, res.workflow_id,
+                                   res.node_id, res.error + "_retry");
+        } else {
+          wf->MarkFailed(res.node_id);
+          if (trace_) trace_->Emit(TraceEvent::AttemptFail, res.duration_ms, res.workflow_id,
+                                   res.node_id, res.error);
+        }
       }
     }
 

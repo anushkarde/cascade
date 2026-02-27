@@ -167,7 +167,19 @@ void Workflow::MarkSucceeded(NodeId nid) {
 }
 
 void Workflow::MarkFailed(NodeId nid) {
+  const int iter = node(nid).iter;
   SetState(nid, NodeState::Failed);
+
+  // Permanent failure: terminate the workflow so the controller can make progress.
+  done_ = true;
+  stop_iter_ = iter;
+  PruneAfterStop(iter);
+
+  RefreshRunnable();
+}
+
+void Workflow::Retry(NodeId nid) {
+  SetState(nid, NodeState::Runnable);
   RefreshRunnable();
 }
 

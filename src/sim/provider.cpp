@@ -10,8 +10,9 @@ namespace sim {
 // TokenBucket
 // -----------------------------------------------------------------------------
 
-TokenBucket::TokenBucket(double rate_per_sec, double capacity)
+TokenBucket::TokenBucket(double rate_per_sec, double capacity, double time_scale)
     : rate_per_sec_(rate_per_sec), capacity_(capacity), tokens_(capacity),
+      time_scale_(std::max(1.0, time_scale)),
       last_refill_(std::chrono::steady_clock::now()) {
   if (rate_per_sec <= 0.0 || capacity <= 0.0) {
     throw std::runtime_error("TokenBucket: rate and capacity must be positive");
@@ -20,7 +21,8 @@ TokenBucket::TokenBucket(double rate_per_sec, double capacity)
 
 void TokenBucket::Refill() {
   const auto now = std::chrono::steady_clock::now();
-  const auto elapsed = std::chrono::duration<double>(now - last_refill_).count();
+  const auto elapsed_wall = std::chrono::duration<double>(now - last_refill_).count();
+  const double elapsed = elapsed_wall * time_scale_;
   tokens_ = std::min(capacity_, tokens_ + elapsed * rate_per_sec_);
   last_refill_ = now;
 }
@@ -31,7 +33,8 @@ void TokenBucket::Acquire(double tokens) {
   while (tokens_ < tokens) {
     Refill();
     if (tokens_ >= tokens) break;
-    const double wait_sec = (tokens - tokens_) / rate_per_sec_;
+    const double effective_rate = rate_per_sec_ * time_scale_;
+    const double wait_sec = (tokens - tokens_) / effective_rate;
     cv_.wait_for(lock, std::chrono::duration<double>(wait_sec), [this, tokens] {
       Refill();
       return tokens_ >= tokens;
@@ -44,9 +47,9 @@ void TokenBucket::Acquire(double tokens) {
 // Tier
 // -----------------------------------------------------------------------------
 
-Tier::Tier(const TierConfig& config)
+Tier::Tier(const TierConfig& config, double time_scale)
     : config_(config),
-      token_bucket_(std::make_unique<TokenBucket>(config.rate_per_sec, config.capacity)) {}
+      token_bucket_(std::make_unique<TokenBucket>(config.rate_per_sec, config.capacity, time_scale)) {}
 
 void Tier::Enqueue(QueuedAttempt attempt) {
   {
@@ -170,10 +173,10 @@ LatencySample LatencySampler::Sample(const LatencyContext& ctx, int timeout_ms, 
 // ProviderManager
 // -----------------------------------------------------------------------------
 
-ProviderManager::ProviderManager(const ProviderConfig& config) {
+ProviderManager::ProviderManager(const ProviderConfig& config, double time_scale) {
   for (const auto& tc : config.tiers) {
     tier_index_[tc.provider][tc.tier_id] = tiers_.size();
-    tiers_.push_back(std::make_unique<Tier>(tc));
+    tiers_.push_back(std::make_unique<Tier>(tc, time_scale));
   }
 }
 

@@ -1,0 +1,5 @@
+provider,tier_id,utilization,queue_wait_p95_ms,in_flight_avg
+embed_provider,0,0,50,0
+embed_provider,1,0,50,0
+llm_provider,0,0,50,0
+llm_provider,1,0,50,0
