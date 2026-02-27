@@ -1,0 +1,24 @@
+{
+  "name": "smoke",
+  "sim_binary": "./build/agent_sched_sim",
+  "out_root": "bench_runs",
+  "common_args": {
+    "pdfs": 10,
+    "iters": 3,
+    "subqueries": 4,
+    "time_scale": 50,
+    "enable_model_routing": true,
+    "heavy_tail_prob": 0.02,
+    "heavy_tail_mult": 50
+  },
+  "matrix": {
+    "workflows": [5],
+    "policy": ["fifo_cheapest", "full"],
+    "seeds": [1, 2],
+    "ablations": [
+      {"name": "baseline", "flags": []},
+      {"name": "no_hedge", "flags": ["--disable_hedging"]}
+    ]
+  },
+  "jobs": 2
+}

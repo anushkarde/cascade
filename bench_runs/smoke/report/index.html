@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bench report: smoke</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+    h1 { margin: 0 0 12px 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 16px 0 24px; }
+    .card { border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; background: #fff; }
+    img { max-width: 100%; height: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #e6e6e6; padding: 6px 8px; text-align: left; }
+    th { cursor: pointer; background: #fafafa; position: sticky; top: 0; }
+    .hint { color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Bench report: smoke</h1>
+  <div class="hint">Tip: click table headers to sort.</div>
+  <div class="grid">
+    
+  </div>
+  <div class='card'><b>Notes</b><ul><li>Install pandas to enable plots (pip install -r bench/requirements.txt).</li><li>Install matplotlib to enable plots (pip install -r bench/requirements.txt).</li></ul></div>
+<table><thead><tr><th>run_id</th><th>policy</th><th>workflows</th><th>pdfs</th><th>iters</th><th>subqueries</th><th>seed</th><th>time_scale</th><th>enable_model_routing</th><th>heavy_tail_prob</th><th>heavy_tail_mult</th><th>ablation_name</th><th>ablation_flags</th><th>exit_code</th><th>wall_time_s</th><th>makespan_mean_ms</th><th>makespan_p50_ms</th><th>makespan_p95_ms</th><th>makespan_p99_ms</th><th>cost_mean</th><th>cost_p50</th><th>run_dir</th><th>start_time_unix_s</th><th>end_time_unix_s</th><th>embed_provider_tier0_in_flight_avg</th><th>embed_provider_tier0_queue_wait_p95_ms</th><th>embed_provider_tier0_utilization</th><th>embed_provider_tier1_in_flight_avg</th><th>embed_provider_tier1_queue_wait_p95_ms</th><th>embed_provider_tier1_utilization</th><th>llm_provider_tier0_in_flight_avg</th><th>llm_provider_tier0_queue_wait_p95_ms</th><th>llm_provider_tier0_utilization</th><th>llm_provider_tier1_in_flight_avg</th><th>llm_provider_tier1_queue_wait_p95_ms</th><th>llm_provider_tier1_utilization</th></tr></thead><tbody><tr><td>demo</td><td>full</td><td>50</td><td>10</td><td>3</td><td>4</td><td>1</td><td>50</td><td>True</td><td>0.02</td><td>50</td><td>baseline</td><td></td><td>0</td><td>0.0</td><td>91314.6</td><td>79666.2</td><td>142359</td><td>142359</td><td>1.28164</td><td>1.2726</td><td>/Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/demo</td><td>1772152742.064011</td><td>1772152742.064011</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td></tr></tbody></table>
+  <script>
+    function sortTable(table, colIndex) {
+      const tbody = table.tBodies[0];
+      const rows = Array.from(tbody.rows);
+      const asc = table.getAttribute("data-sort-dir") !== "asc";
+      rows.sort((a, b) => {
+        const av = a.cells[colIndex]?.innerText ?? "";
+        const bv = b.cells[colIndex]?.innerText ?? "";
+        const an = parseFloat(av), bn = parseFloat(bv);
+        const bothNum = !isNaN(an) && !isNaN(bn);
+        if (bothNum) return asc ? (an - bn) : (bn - an);
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      for (const r of rows) tbody.appendChild(r);
+      table.setAttribute("data-sort-dir", asc ? "asc" : "desc");
+    }
+    for (const th of document.querySelectorAll("table thead th")) {
+      th.addEventListener("click", () => {
+        const table = th.closest("table");
+        sortTable(table, th.cellIndex);
+      });
+    }
+  </script>
+</body>
+</html>

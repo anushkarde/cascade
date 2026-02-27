@@ -1,0 +1,18 @@
+agent_sched_sim config:
+  workflows=5
+  pdfs=10
+  iters=3
+  subqueries=4
+  policy=fifo_cheapest
+  seed=2
+  time_scale=50
+  out_dir=/Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/fifo_cheapest__wf5__seed2__baseline__3282381ea875/out
+  enable_model_routing=true
+  disable_hedging=false
+  disable_escalation=false
+  disable_dag_priority=false
+summary:
+  makespan_mean_ms=52359.1
+  makespan_p95_ms=82444.9
+  cost_mean=1.43864
+  outputs: /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/fifo_cheapest__wf5__seed2__baseline__3282381ea875/out/workflows.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/fifo_cheapest__wf5__seed2__baseline__3282381ea875/out/tiers.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/fifo_cheapest__wf5__seed2__baseline__3282381ea875/out/summary.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/fifo_cheapest__wf5__seed2__baseline__3282381ea875/out/trace.json

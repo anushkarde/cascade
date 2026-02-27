@@ -1,0 +1,24 @@
+{
+  "ablation_flags": [],
+  "ablation_name": "baseline",
+  "cmd": [
+    "./build/agent_sched_sim"
+  ],
+  "end_time_unix_s": 1772152742.064011,
+  "exit_code": 0,
+  "params": {
+    "enable_model_routing": true,
+    "heavy_tail_mult": 50,
+    "heavy_tail_prob": 0.02,
+    "iters": 3,
+    "pdfs": 10,
+    "policy": "full",
+    "seed": 1,
+    "subqueries": 4,
+    "time_scale": 50,
+    "workflows": 50
+  },
+  "run_id": "demo",
+  "start_time_unix_s": 1772152742.064011,
+  "wall_time_s": 0.0
+}

@@ -1,0 +1,49 @@
+{
+  "ablation_flags": [
+    "--disable_hedging"
+  ],
+  "ablation_name": "no_hedge",
+  "cmd": [
+    "./build/agent_sched_sim",
+    "--workflows",
+    "5",
+    "--pdfs",
+    "10",
+    "--iters",
+    "3",
+    "--subqueries",
+    "4",
+    "--policy",
+    "full",
+    "--seed",
+    "2",
+    "--time_scale",
+    "50",
+    "--heavy_tail_prob",
+    "0.02",
+    "--heavy_tail_mult",
+    "50",
+    "--enable_model_routing",
+    "--disable_hedging",
+    "--out_dir",
+    "/Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__no_hedge__ff5d8334433a/out"
+  ],
+  "cwd": "/Users/anushkade/Downloads/cascade",
+  "end_time_unix_s": 1772152810.313507,
+  "exit_code": 0,
+  "params": {
+    "enable_model_routing": true,
+    "heavy_tail_mult": 50,
+    "heavy_tail_prob": 0.02,
+    "iters": 3,
+    "pdfs": 10,
+    "policy": "full",
+    "seed": 2,
+    "subqueries": 4,
+    "time_scale": 50,
+    "workflows": 5
+  },
+  "run_id": "full__wf5__seed2__no_hedge__ff5d8334433a",
+  "start_time_unix_s": 1772152807.440576,
+  "wall_time_s": 2.872419
+}

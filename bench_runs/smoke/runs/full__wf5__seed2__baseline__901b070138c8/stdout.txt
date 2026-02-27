@@ -1,0 +1,18 @@
+agent_sched_sim config:
+  workflows=5
+  pdfs=10
+  iters=3
+  subqueries=4
+  policy=full
+  seed=2
+  time_scale=50
+  out_dir=/Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__baseline__901b070138c8/out
+  enable_model_routing=true
+  disable_hedging=false
+  disable_escalation=false
+  disable_dag_priority=false
+summary:
+  makespan_mean_ms=65833.4
+  makespan_p95_ms=77857.1
+  cost_mean=1.19918
+  outputs: /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__baseline__901b070138c8/out/workflows.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__baseline__901b070138c8/out/tiers.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__baseline__901b070138c8/out/summary.csv, /Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/full__wf5__seed2__baseline__901b070138c8/out/trace.json
