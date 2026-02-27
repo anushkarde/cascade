@@ -58,31 +58,40 @@ def _save_baseline_policy_plots(df, assets_dir: Path) -> List[str]:
   workflows_vals = sorted([int(x) for x in base["workflows"].dropna().unique().tolist()])
   out_files: List[str] = []
 
-  fig, axes = plt.subplots(1, 3, figsize=(16, 4), sharey=False)
   metrics = [("makespan_p50_ms", "Makespan p50 (ms)"),
              ("makespan_p95_ms", "Makespan p95 (ms)"),
              ("makespan_p99_ms", "Makespan p99 (ms)")]
 
-  for ax, (col, title) in zip(axes, metrics):
-    rows = []
-    for wf in workflows_vals:
-      grp = base[base["workflows"] == wf].groupby("policy")[col].mean().reset_index()
-      grp["workflows"] = wf
-      rows.append(grp)
-    if rows:
-      plot_df = pd.concat(rows, ignore_index=True)
-    else:
+  if len(workflows_vals) > 1:
+    n_wf = len(workflows_vals)
+    fig, axes = plt.subplots(n_wf, 3, figsize=(16, 4 * n_wf), sharex="col", sharey="row")
+    if n_wf == 1:
+      axes = axes.reshape(1, -1)
+    for i, wf in enumerate(workflows_vals):
+      sub = base[base["workflows"] == wf]
+      for j, (col, title) in enumerate(metrics):
+        ax = axes[i, j]
+        grp = sub.groupby("policy")[col].mean().reset_index()
+        policies = sorted(grp["policy"].astype(str).tolist())
+        vals = [float(grp[grp["policy"] == p][col].iloc[0]) for p in policies]
+        x = range(len(policies))
+        ax.bar(list(x), vals)
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(policies, rotation=20, ha="right")
+        ax.set_title(f"{title} (workflows={wf})")
+        ax.grid(axis="y", alpha=0.25)
+  else:
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4), sharey=False)
+    for ax, (col, title) in zip(axes, metrics):
       plot_df = base.groupby("policy")[col].mean().reset_index()
-      plot_df["workflows"] = "all"
-
-    policies = sorted(plot_df["policy"].astype(str).unique().tolist())
-    x = range(len(policies))
-    vals = [plot_df[plot_df["policy"] == p][col].mean() for p in policies]
-    ax.bar(list(x), vals)
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(policies, rotation=20, ha="right")
-    ax.set_title(title)
-    ax.grid(axis="y", alpha=0.25)
+      policies = sorted(plot_df["policy"].astype(str).tolist())
+      vals = [float(plot_df[plot_df["policy"] == p][col].iloc[0]) for p in policies]
+      x = range(len(policies))
+      ax.bar(list(x), vals)
+      ax.set_xticks(list(x))
+      ax.set_xticklabels(policies, rotation=20, ha="right")
+      ax.set_title(title)
+      ax.grid(axis="y", alpha=0.25)
 
   fig.tight_layout()
   out_path = assets_dir / "makespan_by_policy.png"
@@ -162,7 +171,28 @@ def _save_full_ablation_delta_plot(df, assets_dir: Path) -> Optional[str]:
   return out_path.name
 
 
-def _write_index_html(out_path: Path, title: str, images: List[str], table_html: str) -> None:
+def _build_summary_section(rows: list[dict[str, str]], headers: list[str]) -> str:
+  n_runs = len(rows)
+  policies = sorted(set(r.get("policy", "") for r in rows if r.get("policy")))
+  workflows = sorted(set(r.get("workflows", "") for r in rows if r.get("workflows")))
+  ablations = sorted(set(r.get("ablation_name", "") for r in rows if r.get("ablation_name")))
+  return (
+    "<section class='summary'>"
+    f"<p><b>Runs:</b> {n_runs} | "
+    f"<b>Policies:</b> {', '.join(policies) or '-'} | "
+    f"<b>Workflow scales:</b> {', '.join(str(w) for w in workflows) or '-'} | "
+    f"<b>Ablations:</b> {', '.join(ablations) or '-'}</p>"
+    "</section>"
+  )
+
+
+def _write_index_html(
+  out_path: Path,
+  title: str,
+  images: List[str],
+  table_html: str,
+  summary_html: str = "",
+) -> None:
   imgs = "\n".join(
     f'<div class="card"><img src="assets/{html.escape(img)}" alt="{html.escape(img)}"></div>'
     for img in images
@@ -178,21 +208,25 @@ def _write_index_html(out_path: Path, title: str, images: List[str], table_html:
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }}
     h1 {{ margin: 0 0 12px 0; }}
+    .summary {{ margin: 0 0 16px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 16px 0 24px; }}
     .card {{ border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; background: #fff; }}
     img {{ max-width: 100%; height: auto; }}
     table {{ border-collapse: collapse; width: 100%; font-size: 12px; }}
     th, td {{ border: 1px solid #e6e6e6; padding: 6px 8px; text-align: left; }}
     th {{ cursor: pointer; background: #fafafa; position: sticky; top: 0; }}
-    .hint {{ color: #666; font-size: 12px; }}
+    .hint {{ color: #666; font-size: 12px; margin-bottom: 8px; }}
+    h2 {{ margin: 24px 0 8px 0; font-size: 16px; }}
   </style>
 </head>
 <body>
   <h1>{html.escape(title)}</h1>
+  {summary_html}
   <div class="hint">Tip: click table headers to sort.</div>
   <div class="grid">
     {imgs}
   </div>
+  <h2>Run-level results</h2>
   {table_html}
   <script>
     function sortTable(table, colIndex) {{
@@ -280,14 +314,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not have_mpl:
       notes.append("Install matplotlib to enable plots (pip install -r bench/requirements.txt).")
 
-  table_html = _rows_to_html_table(headers, rows)
+  summary_html = _build_summary_section(rows, headers)
+
+  key_cols = [
+    "run_id", "policy", "workflows", "ablation_name",
+    "makespan_p50_ms", "makespan_p95_ms", "makespan_p99_ms",
+    "cost_mean", "wall_time_s",
+  ]
+  table_headers = [h for h in key_cols if h in headers]
+  if not table_headers:
+    table_headers = headers
+  table_html = _rows_to_html_table(table_headers, rows)
+
   if notes:
     note_html = "<div class='card'><b>Notes</b><ul>" + "".join(
       f"<li>{html.escape(n)}</li>" for n in notes
     ) + "</ul></div>"
     table_html = note_html + "\n" + table_html
 
-  _write_index_html(out_dir / "index.html", f"Bench report: {exp_dir.name}", images, table_html)
+  _write_index_html(
+    out_dir / "index.html",
+    f"Bench report: {exp_dir.name}",
+    images,
+    table_html,
+    summary_html,
+  )
   print(f"wrote: {out_dir / 'index.html'}")
   return 0
 

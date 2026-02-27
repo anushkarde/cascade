@@ -7,23 +7,36 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
     h1 { margin: 0 0 12px 0; }
+    .summary { margin: 0 0 16px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 16px 0 24px; }
     .card { border: 1px solid #e6e6e6; border-radius: 10px; padding: 12px; background: #fff; }
     img { max-width: 100%; height: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 12px; }
     th, td { border: 1px solid #e6e6e6; padding: 6px 8px; text-align: left; }
     th { cursor: pointer; background: #fafafa; position: sticky; top: 0; }
-    .hint { color: #666; font-size: 12px; }
+    .hint { color: #666; font-size: 12px; margin-bottom: 8px; }
+    h2 { margin: 24px 0 8px 0; font-size: 16px; }
   </style>
 </head>
 <body>
   <h1>Bench report: smoke</h1>
+  <section class='summary'><p><b>Runs:</b> 9 | <b>Policies:</b> fifo_cheapest, full | <b>Workflow scales:</b> 5, 50 | <b>Ablations:</b> baseline, no_hedge</p></section>
   <div class="hint">Tip: click table headers to sort.</div>
   <div class="grid">
-    
+    <div class="card"><img src="assets/makespan_by_policy.png" alt="makespan_by_policy.png"></div>
+<div class="card"><img src="assets/cost_by_policy.png" alt="cost_by_policy.png"></div>
+<div class="card"><img src="assets/ablation_deltas_full_p95_ratio.png" alt="ablation_deltas_full_p95_ratio.png"></div>
   </div>
-  <div class='card'><b>Notes</b><ul><li>Install pandas to enable plots (pip install -r bench/requirements.txt).</li><li>Install matplotlib to enable plots (pip install -r bench/requirements.txt).</li></ul></div>
-<table><thead><tr><th>run_id</th><th>policy</th><th>workflows</th><th>pdfs</th><th>iters</th><th>subqueries</th><th>seed</th><th>time_scale</th><th>enable_model_routing</th><th>heavy_tail_prob</th><th>heavy_tail_mult</th><th>ablation_name</th><th>ablation_flags</th><th>exit_code</th><th>wall_time_s</th><th>makespan_mean_ms</th><th>makespan_p50_ms</th><th>makespan_p95_ms</th><th>makespan_p99_ms</th><th>cost_mean</th><th>cost_p50</th><th>run_dir</th><th>start_time_unix_s</th><th>end_time_unix_s</th><th>embed_provider_tier0_in_flight_avg</th><th>embed_provider_tier0_queue_wait_p95_ms</th><th>embed_provider_tier0_utilization</th><th>embed_provider_tier1_in_flight_avg</th><th>embed_provider_tier1_queue_wait_p95_ms</th><th>embed_provider_tier1_utilization</th><th>llm_provider_tier0_in_flight_avg</th><th>llm_provider_tier0_queue_wait_p95_ms</th><th>llm_provider_tier0_utilization</th><th>llm_provider_tier1_in_flight_avg</th><th>llm_provider_tier1_queue_wait_p95_ms</th><th>llm_provider_tier1_utilization</th></tr></thead><tbody><tr><td>demo</td><td>full</td><td>50</td><td>10</td><td>3</td><td>4</td><td>1</td><td>50</td><td>True</td><td>0.02</td><td>50</td><td>baseline</td><td></td><td>0</td><td>0.0</td><td>91314.6</td><td>79666.2</td><td>142359</td><td>142359</td><td>1.28164</td><td>1.2726</td><td>/Users/anushkade/Downloads/cascade/bench_runs/smoke/runs/demo</td><td>1772152742.064011</td><td>1772152742.064011</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td><td>0</td><td>50</td><td>0</td></tr></tbody></table>
+  <h2>Run-level results</h2>
+  <table><thead><tr><th>run_id</th><th>policy</th><th>workflows</th><th>ablation_name</th><th>makespan_p50_ms</th><th>makespan_p95_ms</th><th>makespan_p99_ms</th><th>cost_mean</th><th>wall_time_s</th></tr></thead><tbody><tr><td>demo</td><td>full</td><td>50</td><td>baseline</td><td>79666.2</td><td>142359</td><td>142359</td><td>1.28164</td><td>0.0</td></tr>
+<tr><td>fifo_cheapest__wf5__seed1__baseline__c9768924ff6b</td><td>fifo_cheapest</td><td>5</td><td>baseline</td><td>74092.2</td><td>99802.1</td><td>99802.1</td><td>1.31532</td><td>2.115475</td></tr>
+<tr><td>fifo_cheapest__wf5__seed1__no_hedge__34d4a264e819</td><td>fifo_cheapest</td><td>5</td><td>no_hedge</td><td>48906.4</td><td>75446.8</td><td>75446.8</td><td>1.31428</td><td>1.628066</td></tr>
+<tr><td>fifo_cheapest__wf5__seed2__baseline__3282381ea875</td><td>fifo_cheapest</td><td>5</td><td>baseline</td><td>50735.9</td><td>82444.9</td><td>82444.9</td><td>1.43864</td><td>1.772377</td></tr>
+<tr><td>fifo_cheapest__wf5__seed2__no_hedge__d896f4988e7f</td><td>fifo_cheapest</td><td>5</td><td>no_hedge</td><td>62515.6</td><td>133395</td><td>133395</td><td>1.64452</td><td>2.790378</td></tr>
+<tr><td>full__wf5__seed1__baseline__fcdc4023c8cf</td><td>full</td><td>5</td><td>baseline</td><td>49147.1</td><td>62344.4</td><td>62344.4</td><td>1.68572</td><td>1.368121</td></tr>
+<tr><td>full__wf5__seed1__no_hedge__d85f95cd9565</td><td>full</td><td>5</td><td>no_hedge</td><td>68666.5</td><td>80794.9</td><td>80794.9</td><td>1.31324</td><td>1.736889</td></tr>
+<tr><td>full__wf5__seed2__baseline__901b070138c8</td><td>full</td><td>5</td><td>baseline</td><td>62255</td><td>77857.1</td><td>77857.1</td><td>1.19918</td><td>1.665711</td></tr>
+<tr><td>full__wf5__seed2__no_hedge__ff5d8334433a</td><td>full</td><td>5</td><td>no_hedge</td><td>81521.7</td><td>137663</td><td>137663</td><td>1.4346</td><td>2.872419</td></tr></tbody></table>
   <script>
     function sortTable(table, colIndex) {
       const tbody = table.tBodies[0];

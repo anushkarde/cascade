@@ -42,6 +42,26 @@ def _read_tiers_wide(path: Path) -> Dict[str, Any]:
   return out
 
 
+def _parse_ablation_flags(flags: Optional[List[str]]) -> Dict[str, bool]:
+  """Extract disable_* booleans from ablation flags for easier filtering."""
+  out: Dict[str, bool] = {
+    "disable_hedging": False,
+    "disable_escalation": False,
+    "disable_dag_priority": False,
+  }
+  if not flags:
+    return out
+  for f in flags:
+    s = str(f).strip()
+    if s == "--disable_hedging":
+      out["disable_hedging"] = True
+    elif s == "--disable_escalation":
+      out["disable_escalation"] = True
+    elif s == "--disable_dag_priority":
+      out["disable_dag_priority"] = True
+  return out
+
+
 _SAN_RE = re.compile(r"[^a-zA-Z0-9_]+")
 
 
@@ -79,8 +99,12 @@ def _write_rows_csv(path: Path, rows: Sequence[Dict[str, Any]]) -> None:
     "heavy_tail_mult",
     "ablation_name",
     "ablation_flags",
+    "disable_hedging",
+    "disable_escalation",
+    "disable_dag_priority",
     "exit_code",
     "wall_time_s",
+    "sim_binary_version",
     "makespan_mean_ms",
     "makespan_p50_ms",
     "makespan_p95_ms",
@@ -143,8 +167,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     row["end_time_unix_s"] = meta.get("end_time_unix_s")
 
     row["ablation_name"] = meta.get("ablation_name")
-    if "ablation_flags" in meta:
-      row["ablation_flags"] = " ".join(str(x) for x in meta.get("ablation_flags") or [])
+    ablation_flags = meta.get("ablation_flags") or []
+    if ablation_flags:
+      row["ablation_flags"] = " ".join(str(x) for x in ablation_flags)
+    for k, v in _parse_ablation_flags(ablation_flags).items():
+      row[k] = v
+
+    if meta.get("sim_binary_version") is not None:
+      row["sim_binary_version"] = meta["sim_binary_version"]
 
     params = meta.get("params") or {}
     if isinstance(params, dict):
